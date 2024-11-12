@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/start";
 import { Button } from "../components/ui/button";
-import { getCookie, setCookie } from "vinxi/http";
+import { getCookie, setCookie, deleteCookie } from "vinxi/http";
 
 const COOKIE_NAME = "visitor-count";
 
@@ -29,6 +29,15 @@ const updateCount = createServerFn("POST", async (addBy: number) => {
   return newCount;
 });
 
+const deleteCounter = createServerFn("POST", async () => {
+  deleteCookie(COOKIE_NAME, {
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production"
+  });
+  return 0;
+});
+
 export const Route = createFileRoute("/")({
   component: Home,
   loader: async () => await getCount(),
@@ -38,15 +47,39 @@ function Home() {
   const router = useRouter();
   const state = Route.useLoaderData();
 
+  const handleCountUpdate = (amount: number) => {
+    updateCount(amount).then(() => {
+      router.invalidate();
+    });
+  };
+
+  const handleDelete = () => {
+    deleteCounter().then(() => {
+      router.invalidate();
+    });
+  };
+
   return (
-    <Button
-      onClick={() => {
-        updateCount(1).then(() => {
-          router.invalidate();
-        });
-      }}
-    >
-      Add 1 to {state}?
-    </Button>
+    <div className="flex gap-4">
+      <Button
+        onClick={() => handleCountUpdate(1)}
+      >
+        Add 1 to {state}
+      </Button>
+      
+      <Button 
+        variant="secondary"
+        onClick={() => handleCountUpdate(-1)}
+      >
+        Subtract 1 from {state}
+      </Button>
+      
+      <Button 
+        variant="destructive"
+        onClick={handleDelete}
+      >
+        Reset Counter
+      </Button>
+    </div>
   );
 }
