@@ -1,15 +1,13 @@
-import * as fs from "fs";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/start";
-
 import { Button } from "../components/ui/button";
+import { getCookie, setCookie } from "vinxi/http";
 
-const filePath = "count.txt";
+const COOKIE_NAME = "visitor-count";
 
 async function readCount() {
-  return parseInt(
-    await fs.promises.readFile(filePath, "utf-8").catch(() => "0")
-  );
+  const countCookie = getCookie(COOKIE_NAME);
+  return parseInt(countCookie ?? "0");
 }
 
 const getCount = createServerFn("GET", () => {
@@ -18,7 +16,17 @@ const getCount = createServerFn("GET", () => {
 
 const updateCount = createServerFn("POST", async (addBy: number) => {
   const count = await readCount();
-  await fs.promises.writeFile(filePath, `${count + addBy}`);
+  const newCount = count + addBy;
+  
+  // Set cookie with a reasonable expiration (e.g., 1 year)
+  setCookie(COOKIE_NAME, newCount.toString(), {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365, // 1 year in seconds
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production"
+  });
+  
+  return newCount;
 });
 
 export const Route = createFileRoute("/")({
